@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, Tray, Menu } = require('electron');
 const path = require('path');
 const { getConfigFiles, switchConfig, getConnectionInfo } = require('./wireguard-manager');
 const { execSync, exec } = require('child_process');
+const fs = require('fs');
 
 // Set the correct Node.js path
 try {
@@ -147,6 +148,97 @@ app.whenReady().then(() => {
                 localIp: 'Error',
                 publicIp: 'Error',
                 status: 'Error: ' + error.message
+            });
+        }
+    });
+
+    // Handle disconnect request
+    ipcMain.on('disconnect-wireguard', async (event) => {
+        console.log('Received disconnect-wireguard request');
+        try {
+            // Get active interfaces
+            const result = execSync('wg show interfaces').toString().trim();
+            if (result) {
+                const interfaces = result.split(/\s+/);
+                console.log(`Disconnecting interfaces: ${interfaces.join(', ')}`);
+                
+                const homeDir = require('os').homedir();
+                const CONFIG_DIR = path.join(homeDir, 'wireguard');
+                
+                // Disconnect each interface
+                for (const iface of interfaces) {
+                    try {
+                        // Buscar archivos de configuración en diferentes ubicaciones
+                        const possibleConfigFiles = [
+                            path.join(CONFIG_DIR, `${iface}.conf`),
+                            `/opt/homebrew/etc/wireguard/${iface}.conf`,
+                            `/etc/wireguard/${iface}.conf`,
+                            path.join(CONFIG_DIR, `${iface.replace('utun', 'wg')}.conf`),
+                            path.join(CONFIG_DIR, `${iface}_wireguard.conf`)
+                        ];
+                        
+                        let disconnected = false;
+                        for (const configFile of possibleConfigFiles) {
+                            if (fs.existsSync(configFile)) {
+                                console.log(`Disconnecting using config file: ${configFile}`);
+                                try {
+                                    execSync(`sudo wg-quick down "${configFile}"`);
+                                    console.log(`Successfully disconnected ${iface} using ${configFile}`);
+                                    disconnected = true;
+                                    break;
+                                } catch (err) {
+                                    console.error(`Error disconnecting with config file ${configFile}:`, err.message);
+                                }
+                            }
+                        }
+                        
+                        // Si no se encontró el archivo de configuración, intentar directamente con el nombre de la interfaz
+                        if (!disconnected) {
+                            console.log(`No config file found for ${iface}, trying to disconnect interface directly`);
+                            try {
+                                // Intentar cargando todas las configuraciones para encontrar coincidencias
+                                const configs = getConfigFiles();
+                                for (const config of configs) {
+                                    try {
+                                        const fullPath = path.join(CONFIG_DIR, config);
+                                        console.log(`Trying to disconnect with config: ${fullPath}`);
+                                        execSync(`sudo wg-quick down "${fullPath}"`);
+                                        console.log(`Successfully disconnected using ${fullPath}`);
+                                        disconnected = true;
+                                        break;
+                                    } catch (configErr) {
+                                        console.error(`Failed to disconnect with ${config}:`, configErr.message);
+                                    }
+                                }
+                                
+                                // Como último recurso, intentar directamente con el nombre de la interfaz
+                                if (!disconnected) {
+                                    console.log(`Trying direct interface disconnect for ${iface}`);
+                                    execSync(`sudo wg-quick down ${iface}`);
+                                    console.log(`Successfully disconnected ${iface} directly`);
+                                }
+                            } catch (err) {
+                                console.error(`Error disconnecting interface ${iface}:`, err.message);
+                            }
+                        }
+                    } catch (err) {
+                        console.error(`Error processing interface ${iface}:`, err.message);
+                    }
+                }
+            } else {
+                console.log('No active WireGuard interfaces found');
+            }
+            
+            // Update status
+            const info = await getConnectionInfo();
+            event.reply('connection-info', info);
+        } catch (error) {
+            console.error('Error disconnecting WireGuard:', error);
+            event.reply('connection-info', {
+                currentConfig: 'Not connected',
+                localIp: 'Not connected',
+                publicIp: 'Not connected',
+                status: 'Disconnected'
             });
         }
     });
