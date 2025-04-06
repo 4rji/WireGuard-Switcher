@@ -1,0 +1,29 @@
+{
+  "name": "wireguard-switcher",
+  "version": "1.0.0",
+  "description": "Automatically switch WireGuard configurations every 3 minutes",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "ip": "^2.0.0",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^2.7.0",
+    "public-ip": "^4.0.4",
+    "shelljs": "^0.8.5"
+  },
+  "devDependencies": {
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.wireguard.switcher",
+    "mac": {
+      "category": "public.app-category.utilities"
+    }
+  }
+}
