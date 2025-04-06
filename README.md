@@ -1,6 +1,15 @@
 # WireGuard Configuration Switcher
 
+Finally, I managed to create an application that allows me to change my IP using WireGuard VPNs every 3 minutes. This program randomly switches between configurations and displays the IP address along with the city and country information in the application. DNS Leak protection will be added soon. I started with a simple interface but later improved it for better visualization. Currently, it has only been tested on Mac M series computers.
+
+This project was created by reusing and adapting various Linux scripts that I used for automating WireGuard on Linux [Wireguard Toolkit](https://github.com/4rji/Wireguard-Management).
+
 This Node.js script automatically switches between WireGuard configurations every 3 minutes on macOS.
+
+
+![Image](https://github.com/user-attachments/assets/f50f1a41-c4f4-4927-aeb9-6db23f30e178)
+
+
 
 ## Prerequisites
 
@@ -62,4 +71,4 @@ To run this script as a service on macOS, you can use `launchd`. Create a plist 
 Then load the service:
 ```bash
 launchctl load ~/Library/LaunchAgents/com.wireguard.switcher.plist
-``` 
+```
